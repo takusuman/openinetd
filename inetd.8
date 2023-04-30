@@ -38,6 +38,7 @@
 .Sh SYNOPSIS
 .Nm inetd
 .Op Fl d
+.Op Fl E
 .Op Fl R Ar rate
 .Op Ar configuration_file
 .Sh DESCRIPTION
@@ -62,6 +63,13 @@ The options are as follows:
 .Bl -tag -width Ds
 .It Fl d
 Turns on debugging.
+.It Fl E
+Prevents
+.Nm inetd
+from laundering the environment.  Without this option a selection of
+potentially harmful environment variables, including
+.Pa PATH ,
+will be removed and not inherited by services.
 .It Fl R Ar rate
 Specify the maximum number of times a service can be invoked
 in one minute; the default is 256.

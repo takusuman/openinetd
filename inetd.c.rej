@@ -1,0 +1,22 @@
+--- inetd.c
++++ inetd.c
+@@ -303,14 +304,18 @@ int
+ main(int argc, char *argv[], char *envp[])
+ {
+ 	int ch;
++	int keepenv = 0;
+ 
+ 	initsetproctitle(argc, argv, envp);
+ 
+-	while ((ch = getopt(argc, argv, "dR:")) != -1)
++	while ((ch = getopt(argc, argv, "dER:")) != -1)
+ 		switch (ch) {
+ 		case 'd':
+ 			debug = 1;
+ 			break;
++		case 'E':
++			keepenv = 1;
++			break;
+ 		case 'R': {	/* invocation rate */
+ 			char *p;
+ 			int val;

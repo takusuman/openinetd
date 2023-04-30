@@ -196,8 +196,7 @@ service type.
 and
 .Dq udp
 will be recognized as
-.Dq TCP or UDP over default IP version .
-This is currently IPv4, but in the future it will be IPv6.
+.Dq TCP or UDP over both IPv4 and IPv6.
 If you need to specify IPv4 or IPv6 explicitly, use something like
 .Dq tcp4
 or
@@ -350,9 +349,9 @@ rereads its configuration file when it receives a hangup signal,
 Services may be added, deleted or modified when the configuration file
 is reread.
 .Ss IPv6 TCP/UDP behavior
-If you wish to run a server for IPv4 and IPv6 traffic,
-you'll need to run two separate processes for the same server program,
-specified as two separate lines in
+The default is to run two servers: one for IPv4 and one for IPv6 traffic.
+If you have different requirements then you may specify one or two
+separate lines in
 .Pa inetd.conf ,
 for
 .Dq tcp4
@@ -375,8 +374,11 @@ and
 .Dq tcp6 ,
 IPv4 traffic will be routed to the server on
 .Dq tcp4 ,
-and IPv6 traffic will go to server on
-.Dq tcp6 .
+and IPv6 traffic will go to the server on
+.Dq tcp6 ,
+which is identical to the default behaviour when only
+.Dq tcp
+is specified.
 .It
 If you have only one server on
 .Dq tcp6 ,
