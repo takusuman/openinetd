@@ -1,0 +1,16 @@
+--- a/inetd.c
++++ b/inetd.c
+@@ -301,10 +301,12 @@ void		initring(void);
+ u_int32_t	machtime(void);
+ 
+ int
+-main(int argc, char *argv[])
++main(int argc, char *argv[], char *envp[])
+ {
+ 	int ch;
+ 
++	initsetproctitle(argc, argv, envp);
++
+ 	while ((ch = getopt(argc, argv, "dR:")) != -1)
+ 		switch (ch) {
+ 		case 'd':

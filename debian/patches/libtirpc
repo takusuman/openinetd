@@ -1,0 +1,15 @@
+Use the TI RPC implementation instead of the glibc SunRPC implementation
+that has been removed in glibc version 2.32.
+
+--- a/Makefile.debian
++++ b/Makefile.debian
+@@ -15,6 +15,9 @@ LIBS += $(shell $(PKG_CONFIG) --libs lib
+ DEFS += $(shell $(PKG_CONFIG) --cflags libsystemd)
+ LIBS += $(shell $(PKG_CONFIG) --libs libsystemd)
+ 
++DEFS += $(shell $(PKG_CONFIG) --cflags libtirpc)
++LIBS += $(shell $(PKG_CONFIG) --libs libtirpc)
++
+ CPPFLAGS += $(DEFS)
+ 
+ inetd_OBJECTS := inetd.o

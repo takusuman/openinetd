@@ -1,0 +1,2 @@
+/usr/share/man/man8/inetd.8.gz /usr/share/man/man5/inetd.conf.5.gz
+/lib/systemd/system/inetd.service /lib/systemd/system/openbsd-inetd.service

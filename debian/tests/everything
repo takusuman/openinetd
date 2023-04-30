@@ -1,0 +1,123 @@
+#!/usr/bin/perl
+
+use v5.14;
+use warnings;
+use utf8;
+use autodie;
+
+use File::Temp qw(tempdir);
+use Test::More;
+use IO::Socket::IP;
+use Time::HiRes qw(usleep);
+
+$ENV{AUTOPKGTEST_TMP} = tempdir(CLEANUP => 1)
+	if not $ENV{AUTOPKGTEST_TMP};
+chdir($ENV{AUTOPKGTEST_TMP});
+
+##############################################################################
+my $user = getpwuid($<) or die 'getpwent';
+
+open(my $fh, '>', 'inetd.conf');
+my $conf = << "END";
+2000	stream	tcp		nowait	$user	/usr/sbin/try-from
+2001	stream	tcp46	nowait	$user	/usr/sbin/try-from
+2002	stream	tcp4	nowait	$user	/usr/sbin/try-from
+2002	stream	tcp6	nowait	$user	/usr/sbin/try-from
+2004	stream	tcp4	nowait	$user	/usr/sbin/try-from
+2006	stream	tcp6	nowait	$user	/usr/sbin/try-from
+
+localhost:2010	stream	tcp		nowait	$user	/usr/sbin/try-from
+ip6-localhost:2011	stream	tcp6	nowait	$user	/usr/sbin/try-from
+END
+print $fh $conf;
+close($fh);
+
+my $pid = fork;
+if (not $pid) {
+	exec(qw(/usr/sbin/inetd -d -i ./inetd.conf));
+	BAIL_OUT('exec failed');
+}
+
+##############################################################################
+wait_for_port(2000);
+ok(1, 'inetd started');
+
+$_ = t(PeerPort => 1999);
+ok(not defined $_);
+
+##############################################################################
+$_ = t(PeerPort => 2000);
+like($_, qr/^client .+ \Q127.0.0.1\E$/m);
+$_ = t(PeerPort => 2000, PeerHost => '::1');
+like($_, qr/^client .+ ::1$/m);
+
+$_ = t(PeerPort => 2001);
+like($_, qr/^client .+ ::ffff:\Q127.0.0.1\E$/m);
+$_ = t(PeerPort => 2001, PeerHost => '::1');
+like($_, qr/^client .+ ::1$/m);
+
+$_ = t(PeerPort => 2002);
+like($_, qr/^client .+ \Q127.0.0.1\E$/m);
+$_ = t(PeerPort => 2002, PeerHost => '::1');
+like($_, qr/^client .+ ::1$/m);
+
+$_ = t(PeerPort => 2004);
+like($_, qr/^client .+ \Q127.0.0.1\E$/m);
+$_ = t(PeerPort => 2004, PeerHost => '::1');
+ok(not defined $_);
+
+$_ = t(PeerPort => 2006);
+ok(not defined $_);
+$_ = t(PeerPort => 2006, PeerHost => '::1');
+like($_, qr/^client .+ ::1$/m);
+
+$_ = t(PeerPort => 2010);
+like($_, qr/^client .+ \Q127.0.0.1\E$/m);
+$_ = t(PeerPort => 2010, PeerHost => '::1');
+like($_, qr/^client .+ ::1$/m);
+
+$_ = t(PeerPort => 2011);
+ok(not defined $_);
+$_ = t(PeerPort => 2011, PeerHost => '::1');
+like($_, qr/^client .+ ::1$/m);
+
+##############################################################################
+kill('KILL', $pid);
+ok(1, 'inetd killed');
+
+done_testing();
+exit;
+
+##############################################################################
+sub t {
+	my $sock = IO::Socket::IP->new(
+		PeerHost => '127.0.0.1',
+		Type => SOCK_STREAM,
+		Timeout => 5,
+		@_,
+	) or return;
+
+	my $msg = join('', <$sock>);
+	close($sock);
+
+	return $msg;
+}
+
+sub wait_for_port {
+	my ($port) = @_;
+
+	my $count = 100;
+	while ($count-- > 0) {
+		my $sock = IO::Socket::IP->new(
+			PeerHost => '127.0.0.1',
+			PeerPort => $port,
+			Type => SOCK_STREAM,
+			Timeout => 5,
+		) and return;
+		warn "IO::Socket::IP->new: $@";
+		usleep(100000);
+	}
+
+	BAIL_OUT("Nothing is listening on port $port");
+}
+

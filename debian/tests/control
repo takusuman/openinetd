@@ -1,0 +1,4 @@
+Tests: everything
+Depends: @, netbase, perl, tcpd
+Restrictions: allow-stderr, isolation-container, needs-internet
+

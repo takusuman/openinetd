@@ -1,0 +1,94 @@
+--- a/inetd.c
++++ b/inetd.c
+@@ -154,6 +154,8 @@
+ #ifdef HAVE_GETIFADDRS
+ #include <ifaddrs.h>
+ #endif
++#include <systemd/sd-daemon.h>
++#include <sys/time.h>
+ #include <rpc/rpc.h>
+ #include <rpc/pmap_clnt.h>
+ #include <event.h>
+@@ -314,6 +316,11 @@ void		inetd_setproctitle(char *a, int s)
+ void		initring(void);
+ u_int32_t	machtime(void);
+ 
++void notify_watchdog(int fd, short event, void *arg)
++{
++    sd_notify(0, "WATCHDOG=1\n");
++}
++
+ int
+ main(int argc, char *argv[], char *envp[])
+ {
+@@ -389,6 +396,9 @@ main(int argc, char *argv[], char *envp[
+ 		exit(1);
+ 	}
+ 
++	if (getenv("NOTIFY_SOCKET"))
++	    nodaemon = 1;
++
+ 	umask(022);
+ 	if (debug == 0) {
+ 		if (nodaemon == 0)
+@@ -441,6 +451,21 @@ main(int argc, char *argv[], char *envp[
+ 
+ 	signal(SIGPIPE, SIG_IGN);
+ 
++	{
++	    uint64_t wd_timeout;
++
++	    if (sd_watchdog_enabled(0, &wd_timeout)) {
++		struct timeval tv;
++		struct event *ev = malloc(sizeof(struct event));
++
++		wd_timeout = wd_timeout / 2;
++		tv.tv_usec = wd_timeout % 1000000;
++		tv.tv_sec = wd_timeout / 1000000;
++		event_set(ev, -1, EV_PERSIST, notify_watchdog, NULL);
++		event_add(ev, &tv);
++	    }
++	}
++
+ 	/* space for daemons to overwrite environment for ps */
+ 	{
+ #define DUMMYSIZE 100
+@@ -617,6 +642,8 @@ config(int sig, short event, void *arg)
+ 	int add;
+ 	char protoname[11];
+ 
++	sd_notify(0, "RELOADING=1\n");
++
+ 	if (!setconfig()) {
+ 		syslog(LOG_ERR, "%s: %m", CONFIG);
+ 		exit(1);
+@@ -836,6 +863,8 @@ config(int sig, short event, void *arg)
+ 		freeconfig(sep);
+ 		free(sep);
+ 	}
++
++	sd_notify(0, "READY=1\n");
+ }
+ 
+ void
+@@ -864,6 +893,8 @@ die(int sig, short events, void *arg)
+ {
+ 	struct servtab *sep;
+ 
++	sd_notify(0, "STOPPING=1\n");
++
+ 	for (sep = servtab; sep; sep = sep->se_next) {
+ 		if (sep->se_fd == -1)
+ 			continue;
+--- a/Makefile.debian
++++ b/Makefile.debian
+@@ -10,6 +10,9 @@ LIBS += $(shell $(PKG_CONFIG) --libs lib
+ DEFS += $(shell $(PKG_CONFIG) --cflags libevent)
+ LIBS += $(shell $(PKG_CONFIG) --libs libevent)
+ 
++DEFS += $(shell $(PKG_CONFIG) --cflags libsystemd)
++LIBS += $(shell $(PKG_CONFIG) --libs libsystemd)
++
+ CPPFLAGS += $(DEFS)
+ 
+ inetd_OBJECTS := inetd.o

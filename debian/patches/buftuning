@@ -1,0 +1,165 @@
+--- a/inetd.8
++++ b/inetd.8
+@@ -108,7 +108,7 @@ The fields of the configuration file are
+ .Bd -unfilled -offset indent
+ service name
+ socket type
+-protocol
++protocol[,sndbuf=size][,rcvbuf=size]
+ wait/nowait[.max]
+ user[.group] or user[:group]
+ server program
+@@ -120,7 +120,7 @@ based service, the entry would contain t
+ .Bd -unfilled -offset indent
+ service name/version
+ socket type
+-rpc/protocol
++rpc/protocol[,sndbuf=size][,rcvbuf=size]
+ wait/nowait[.max]
+ user[.group] or user[:group]
+ server program
+@@ -235,6 +235,30 @@ of
+ is used to specify a socket in the
+ .Ux Ns -domain .
+ .Pp
++In addition to the protocol, the configuration file may specify the
++send and receive socket buffer sizes for the listening socket.
++This is especially useful for
++.Tn TCP
++as the window scale factor, which is based on the receive socket
++buffer size, is advertised when the connection handshake occurs,
++thus the socket buffer size for the server must be set on the listen socket.
++By increasing the socket buffer sizes, better
++.Tn TCP
++performance may be realized in some situations.
++The socket buffer sizes are specified by appending their values to
++the protocol specification as follows:
++.Bd -literal -offset indent
++tcp,rcvbuf=16384
++tcp,sndbuf=64k
++tcp,rcvbuf=64k,sndbuf=1m
++.Ed
++.Pp
++A literal value may be specified, or modified using
++.Sq k
++to indicate kilobytes or
++.Sq m
++to indicate megabytes.
++.Pp
+ The
+ .Em wait/nowait
+ entry is used to tell
+--- a/inetd.c
++++ b/inetd.c
+@@ -198,6 +198,8 @@ struct	servtab {
+ 	int	se_socktype;		/* type of socket to use */
+ 	int	se_family;		/* address family */
+ 	char	*se_proto;		/* protocol used */
++	int	se_sndbuf;		/* sndbuf size */
++	int	se_rcvbuf;		/* rcvbuf size */
+ 	int	se_rpcprog;		/* rpc program number */
+ 	int	se_rpcversl;		/* rpc program lowest version */
+ 	int	se_rpcversh;		/* rpc program highest version */
+@@ -1115,6 +1117,8 @@ getconfigent(void)
+ {
+ 	struct servtab *sep, *tsep;
+ 	char *arg, *cp, *hostdelim, *s;
++	char *cp0, *buf0, *buf1, *sz0, *sz1;
++	int val;
+ 	int argc;
+ 
+ 	sep = calloc(1, sizeof(struct servtab));
+@@ -1188,6 +1192,93 @@ more:
+ 
+ 	sep->se_proto = newstr(arg);
+ 
++#define	MALFORMED(arg) \
++do { \
++	syslog(LOG_ERR, "%s: malformed buffer size option `%s'", \
++	    sep->se_service, (arg)); \
++	goto more; \
++} while (0)
++
++#define	GETVAL(arg) \
++do { \
++	if (!isdigit(*(arg))) \
++		MALFORMED(arg); \
++	val = strtol((arg), &cp0, 10); \
++	if (cp0 != NULL) { \
++		if (cp0[1] != '\0') \
++			MALFORMED((arg)); \
++		if (cp0[0] == 'k') \
++			val *= 1024; \
++		if (cp0[0] == 'm') \
++			val *= 1024 * 1024; \
++	} \
++	if (val < 1) { \
++		syslog(LOG_ERR, "%s: invalid buffer size `%s'", \
++		    sep->se_service, (arg)); \
++		goto more; \
++	} \
++} while (0)
++
++#define	ASSIGN(arg) \
++do { \
++	if (strcmp((arg), "sndbuf") == 0) \
++		sep->se_sndbuf = val; \
++	else if (strcmp((arg), "rcvbuf") == 0) \
++		sep->se_rcvbuf = val; \
++	else \
++		MALFORMED((arg)); \
++} while (0)
++
++	/*
++	 * Extract the send and receive buffer sizes before parsing
++	 * the protocol.
++	 */
++	sep->se_sndbuf = sep->se_rcvbuf = 0;
++	buf0 = buf1 = sz0 = sz1 = NULL;
++	if ((buf0 = strchr(sep->se_proto, ',')) != NULL) {
++		/* Skip the , */
++		*buf0++ = '\0';
++
++		/* Check to see if another socket buffer size was specified. */
++		if ((buf1 = strchr(buf0, ',')) != NULL) {
++			/* Skip the , */
++			*buf1++ = '\0';
++
++			/* Make sure a 3rd one wasn't specified. */
++			if (strchr(buf1, ',') != NULL) {
++				syslog(LOG_ERR, "%s: too many buffer sizes",
++				    sep->se_service);
++				goto more;
++			}
++
++			/* Locate the size. */
++			if ((sz1 = strchr(buf1, '=')) == NULL)
++				MALFORMED(buf1);
++
++			/* Skip the = */
++			*sz1++ = '\0';
++		}
++
++		/* Locate the size. */
++		if ((sz0 = strchr(buf0, '=')) == NULL)
++			MALFORMED(buf0);
++
++		/* Skip the = */
++		*sz0++ = '\0';
++
++		GETVAL(sz0);
++		ASSIGN(buf0);
++
++		if (buf1 != NULL) {
++			GETVAL(sz1);
++			ASSIGN(buf1);
++		}
++	}
++
++#undef ASSIGN
++#undef GETVAL
++#undef MALFORMED
++
+ 	if (strcmp(sep->se_proto, "unix") == 0) {
+ 		sep->se_family = AF_UNIX;
+ 	} else {

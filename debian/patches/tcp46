@@ -1,0 +1,52 @@
+--- a/inetd.8
++++ b/inetd.8
+@@ -396,6 +396,11 @@ and IPv6 traffic will go to server on
+ If you have only one server on
+ .Dq tcp6 ,
+ only IPv6 traffic will be routed to the server.
++.Pp
++The special
++.Dq tcp46
++parameter can be used for obsolete servers which require to receive IPv4
++connections mapped in an IPv6 socket. Its usage is discouraged.
+ .El
+ .Sh FILES
+ .Bl -tag -width /etc/inetd.conf -compact
+--- a/inetd.c
++++ b/inetd.c
+@@ -701,11 +701,15 @@ config(int sig, short event, void *arg)
+ 				    1, USHRT_MAX, NULL));
+ 
+ 				if (!port) {
++					unsigned char *p;
+ 					(void)strlcpy(protoname, sep->se_proto,
+ 					    sizeof(protoname));
+-					if (isdigit((unsigned char)
+-					    protoname[strlen(protoname) - 1]))
+-						protoname[strlen(protoname) - 1] = '\0';
++					for (p = (unsigned char *)
++					    protoname; *p; p++)
++						if (isdigit(*p)) {
++							*p = '\0';
++							break;
++						}
+ 					sp = getservbyname(sep->se_service,
+ 					    protoname);
+ 					if (sp == 0) {
+@@ -881,6 +885,16 @@ setup(struct servtab *sep)
+ 		    sep->se_service, sep->se_proto);
+ 		return;
+ 	}
++	if (strncmp(sep->se_proto, "tcp6", 4) == 0) {
++		if (setsockopt(sep->se_fd, IPPROTO_IPV6, IPV6_V6ONLY, &on,
++			    sizeof (on)) < 0)
++			syslog(LOG_ERR, "setsockopt (IPV6_V6ONLY): %m");
++	} else if (strncmp(sep->se_proto, "tcp46", 5) == 0) {
++		int off = 0;
++		if (setsockopt(sep->se_fd, IPPROTO_IPV6, IPV6_V6ONLY, &off,
++			    sizeof (off)) < 0)
++			syslog(LOG_ERR, "setsockopt (IPV6_V6ONLY): %m");
++	}
+ #define	turnon(fd, opt) \
+ setsockopt(fd, SOL_SOCKET, opt, &on, sizeof (on))
+ 	if (strncmp(sep->se_proto, "tcp", 3) == 0 && debug &&

@@ -1,0 +1,9 @@
+openbsd-inetd (0.20221205-1) unstable; urgency=medium
+
+  * When just "tcp" or "udp" is specified in inetd.conf, now inetd defaults
+    to runnning two servers: one for IPv4 and one for IPv6 traffic.
+    This is identical to specifying both e.g. "tcp4" and "tcp6".
+    The old semantics of only accepting IPv4 connections can be restored
+    by using "tcp4" or "udp4".
+
+ -- Marco d'Itri <md@linux.it>  Mon, 02 Jan 2023 03:09:18 +0100

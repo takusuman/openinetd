@@ -1,0 +1,241 @@
+openbsd-inetd (0.20221205-1) unstable; urgency=medium
+
+  * New CVS snapshot.
+  * When just "tcp" or "udp" is specified in inetd.conf, now inetd defaults
+    to runnning two servers: one for IPv4 and one for IPv6 traffic.
+    This is identical to specifying both e.g. "tcp4" and "tcp6".
+    The old semantics of only accepting IPv4 connections can be restored
+    by using "tcp4" or "udp4".
+  * Added the missing echo and chargen TCP small services to the example
+    inetd.conf. No examples for other UDP small services will be provided
+    because they are a source of reflection DoS attacks. (Closes: #1013300)
+  * Added an autopkgtest.
+
+ -- Marco d'Itri <md@linux.it>  Mon, 02 Jan 2023 14:33:50 +0100
+
+openbsd-inetd (0.20160825-5) unstable; urgency=medium
+
+  * Use the TI RPC implementation from libtirpc. (Closes: #968733)
+
+ -- Marco d'Itri <md@linux.it>  Tue, 25 Aug 2020 03:37:27 +0200
+
+openbsd-inetd (0.20160825-4) unstable; urgency=medium
+
+  * Updated the Vcs-* fields.
+
+ -- Marco d'Itri <md@linux.it>  Mon, 18 Feb 2019 01:31:18 +0100
+
+openbsd-inetd (0.20160825-3) unstable; urgency=medium
+
+  * Depend on network-online.target, to support binding a service to a
+    specific address. (Closes: #859487)
+
+ -- Marco d'Itri <md@linux.it>  Wed, 01 Nov 2017 20:21:23 +0100
+
+openbsd-inetd (0.20160825-2) unstable; urgency=medium
+
+  * Made inetd a systemd Type=notify service with watchdog support.
+  * Added support for "systemctl reload".
+  * Support again creating a PID file, which was removed upstream.
+    (Closes: 849776)
+  * Replaced CLOCK_BOOTTIME with CLOCK_MONOTONIC on non-Linux ports.
+
+ -- Marco d'Itri <md@linux.it>  Mon, 02 Jan 2017 11:49:56 +0100
+
+openbsd-inetd (0.20160825-1) unstable; urgency=medium
+
+  * New CVS snapshot. inetd now uses libevent.
+  * Use KillMode=process. (Closes: #824931)
+  * Use a triplet-prefixed pkg-config when cross compiling.
+    (Closes: #839016)
+
+ -- Marco d'Itri <md@linux.it>  Mon, 26 Dec 2016 19:18:00 +0100
+
+openbsd-inetd (0.20140418-2) unstable; urgency=medium
+
+  * Recognize IPv6-bound sockets in the init script. (Closes: #763722)
+
+ -- Marco d'Itri <md@linux.it>  Tue, 21 Oct 2014 03:22:45 +0200
+
+openbsd-inetd (0.20140418-1) unstable; urgency=medium
+
+  * New CVS snapshot.
+  * Use bindnow and PIE hardening.
+  * Added a systemd unit file. (Closes: #716862)
+
+ -- Marco d'Itri <md@linux.it>  Thu, 05 Jun 2014 01:48:49 +0200
+
+openbsd-inetd (0.20091229-3) unstable; urgency=medium
+
+  * Updated patch libwrap: do not wrap internal services as documented,
+    to prevent a segfault. (Closes: #691852)
+  * Private implementations replaced with libbsd. (Closes: #675070)
+  * Removed from the maintainer scripts the code needed to handle upgrade
+    from netkit-inetd.
+  * Support cross-compilation.
+
+ -- Marco d'Itri <md@linux.it>  Fri, 03 Jan 2014 10:41:38 +0100
+
+openbsd-inetd (0.20091229-2) unstable; urgency=medium
+
+  * Fix hardening support by using dpkg-buildpackage. (Closes: #670886)
+
+ -- Marco d'Itri <md@linux.it>  Mon, 21 May 2012 00:17:37 +0200
+
+openbsd-inetd (0.20091229-1) unstable; urgency=medium
+
+  * New CVS snapshot.
+  * Added Multi-Arch: foreign.
+  * Documented the -i and -q command line options. (Closes: #515570, #612616)
+  * If empty, remove /etc/inetd.conf on purge. (Closes: #597622)
+
+ -- Marco d'Itri <md@linux.it>  Sun, 26 Jun 2011 00:42:55 +0200
+
+openbsd-inetd (0.20080125-6) unstable; urgency=medium
+
+  * Added --oknodo to the init script, this time for real. (Closes: #592582)
+
+ -- Marco d'Itri <md@linux.it>  Mon, 30 Aug 2010 00:02:27 +0200
+
+openbsd-inetd (0.20080125-5) unstable; urgency=medium
+
+  * Added --oknodo to the init script. (Closes: #592582)
+
+ -- Marco d'Itri <md@linux.it>  Mon, 16 Aug 2010 21:33:09 +0200
+
+openbsd-inetd (0.20080125-4) unstable; urgency=low
+
+  * Use the hardening-includes package to build with hardening flags.
+  * Do not call the patch-generated makefile in the clean target.
+    (Closes: #538690)
+
+ -- Marco d'Itri <md@linux.it>  Mon, 21 Dec 2009 03:26:02 +0100
+
+openbsd-inetd (0.20080125-3) unstable; urgency=medium
+
+  * Added support for the "status" action to the init script. (Closes: #526375)
+  * inetd.8: documented that the service name may be a port number as well.
+    (Closes: #519283)
+  * Demoted to optional priority.
+
+ -- Marco d'Itri <md@linux.it>  Sat, 04 Jul 2009 17:18:05 +0200
+
+openbsd-inetd (0.20080125-2) unstable; urgency=high
+
+  * Added dh_md5sums to debian/rules, since apparently people nowadays
+    believe again that it is a good idea. (Closes: #484483)
+  * Fixed the init script to povide "openbsd-inetd" instead of "inetd".
+    (Closes: #507119)
+  * Updated patches misc_portability and setproctitle with some missing
+    prototypes.
+  * Updated patch misc_portability with missing arguments to two syslog(3)
+    calls.
+  * Updated patch libwrap to fix a possibly uninitialized variable.
+    The last three fixes are courtesy of Denis Zaitsev.
+
+ -- Marco d'Itri <md@linux.it>  Mon, 15 Dec 2008 02:00:52 +0100
+
+openbsd-inetd (0.20080125-1) unstable; urgency=low
+
+  * New CVS snapshot.
+  * Package painfully converted to quilt.
+  * Fixed a typo in debian/control. (Closes: #125181)
+  * Fixed a typo in the init script. (Closes: #465613, #465732)
+  * Delete /etc/rc[2345].d/S20inetd too when upgrading from netkit-inetd.
+    (Closes: #416010)
+  * Do not use log_warning_msg in the init script when inetd.conf is emtpy,
+    this is not something deserving extra attention. (Closes: #435658)
+  * Document in inetd(8) that datagram services must read some network
+    input or inetd will continue spawning them.
+    Many thanks to James Cameron for the analysis. (Closes: #436803)
+  * Use a real characters class instead of character ranges with grep
+    in the init script, because some locales have weird ranges.
+    Spotted by Meelis Roos. (Closes: #458564)
+
+ -- Marco d'Itri <md@linux.it>  Sun, 20 Apr 2008 15:12:31 +0200
+
+openbsd-inetd (0.20050402-6) unstable; urgency=high
+
+  * Try again to fix #386469 by stopping the daemon in postinst before
+    starting it, because update-inetd run by the maintainer script of a
+    different package may have restarted it after the prerm ran on upgrade.
+    Patch courtesy of Steve Langasek. (Closes: #386469)
+
+ -- Marco d'Itri <md@linux.it>  Wed, 21 Mar 2007 19:07:01 +0100
+
+openbsd-inetd (0.20050402-5) unstable; urgency=medium
+
+  * Try again to fix #386469, this time by removing from the init script
+    stop target the --exec argument to start-stop-daemon, which is known
+    to be broken and generally a bad idea.
+
+ -- Marco d'Itri <md@linux.it>  Sun, 25 Feb 2007 21:28:18 +0100
+
+openbsd-inetd (0.20050402-4) unstable; urgency=medium
+
+  * Fix inetd to build on hurd. (Closes: #393829)
+  * Accept UDP connections on all ports. (Closes: #389854)
+  * Try harder to remove the netkit-inetd conffiles and kill the old inetd
+    to prevent postinst failing. (Closes: #386469)
+
+ -- Marco d'Itri <md@linux.it>  Sat,  6 Jan 2007 18:33:42 +0100
+
+openbsd-inetd (0.20050402-3) unstable; urgency=medium
+
+  * Depend on update-inetd and provide inet-superserver.
+  * Converted the init script to use the LSB logging functions.
+    (Closes: #384879)
+  * Added LSB dependency info to the init script. (Closes: #386629)
+  * Fixed a typo in the package description. (Closes: #390232)
+
+ -- Marco d'Itri <md@linux.it>  Sun, 10 Sep 2006 13:46:23 +0200
+
+openbsd-inetd (0.20050402-2) unstable; urgency=medium
+
+  * Added a sleep command to the init script restart section.
+    (Closes: #376716)
+  * Added -E option not to clobber the environment, contribute by
+    Ian Jackson. (Closes: #355005)
+  * Priority raised to standard.
+
+ -- Marco d'Itri <md@linux.it>  Thu, 17 Aug 2006 18:53:39 +0200
+
+openbsd-inetd (0.20050402-1) unstable; urgency=low
+
+  * New CVS snapshot.
+    + Fixes the permissions of UNIX domain sockets. (Closes: #309537)
+
+ -- Marco d'Itri <md@linux.it>  Sun, 22 May 2005 18:51:03 +0200
+
+openbsd-inetd (0.20040915-1) unstable; urgency=low
+
+  * New CVS snapshot.
+    + Fixes gcc 4.0 FTBFS. (Closes: #287860)
+  * Made the init script source /etc/default/openbsd-inetd, if present.
+    (Closes: #251224)
+  * Documented in inetd(8) that switching between binding to INADDR_ANY and
+    to a specific address requires restarting the daemon. (Closes: #242392)
+  * Added code to create the requested type of IPv6 socket using
+    setsockopt(IPPROTO_IPV6). This requires a modern 2.4 or 2.6 kernel.
+  * Added Conflicts+Replaces+Provides: netkit-inetd to fully replace it.
+    prerm will unlink netkit-inetd's conffiles and the init script is
+    named openbsd-inetd to allow purging netkit-inetd.
+    Alternative solutions to both issues are welcome.
+  * Changed the default inetd.conf to satisfy people who think that every
+    listening socket is a security hole: no internal services are enabled
+    by default. This means that the daemon will not even be started by the
+    init script until some service is enabled in inetd.conf.
+  * Removed from the default inetd.conf the already-commented examples
+    of the internal services which are actually dangerous to run.
+
+ -- Marco d'Itri <md@linux.it>  Sun,  2 Jan 2005 02:40:43 +0100
+
+openbsd-inetd (0.20020802-1) unstable; urgency=low
+
+  * New package.
+  * Pre/postinstall scripts borrowed from aj's netkit-inetd package.
+  * This package fixes many bugs in netkit-inetd, among them:
+    #10813, #32579, #55052, #66752, #143539, #143815, #143816, #125181,
+    #45907, #82241, #96544, #110673.
+
+ -- Marco d'Itri <md@linux.it>  Tue, 20 Aug 2002 15:51:39 +0200

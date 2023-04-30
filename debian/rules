@@ -1,0 +1,21 @@
+#!/usr/bin/make -f
+
+export DEB_BUILD_MAINT_OPTIONS=hardening=+all future=+lfs
+
+%:
+	dh $@
+
+override_dh_auto_clean:
+	rm -f inetd inetd.o
+
+override_dh_auto_build:
+	dh_auto_build -- -f Makefile.debian
+
+override_dh_auto_test:
+
+override_dh_auto_install:
+	dh_auto_install -- -f Makefile.debian
+
+override_dh_installsystemd:
+	dh_installsystemd --name inetd
+

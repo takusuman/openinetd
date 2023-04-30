@@ -1,0 +1,31 @@
+Source: openbsd-inetd
+Section: net
+Priority: optional
+Maintainer: Marco d'Itri <md@linux.it>
+Build-Depends: debhelper-compat (= 13),
+ pkg-config,
+ libbsd-dev,
+ libwrap0-dev,
+ libevent-dev,
+ libsystemd-dev,
+ libtirpc-dev,
+Standards-Version: 4.6.2.0
+Rules-Requires-Root: no
+Vcs-Git: https://salsa.debian.org/md/openbsd-inetd.git
+Vcs-Browser: https://salsa.debian.org/md/openbsd-inetd
+
+Package: openbsd-inetd
+Architecture: any
+Multi-Arch: foreign
+Pre-Depends: ${misc:Pre-Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}, update-inetd, tcpd
+Provides: inet-superserver
+Description: OpenBSD Internet Superserver
+ The inetd server is a network daemon program that specializes in managing
+ incoming network connections. Its configuration file tells it what
+ program needs to be run when an incoming connection is received. Any
+ service port may be configured for either of the tcp or udp protocols.
+ .
+ This is a port of the OpenBSD daemon with some debian-specific features.
+ This package supports IPv6, built-in libwrap access control, binding to
+ specific addresses, UNIX domain sockets and socket buffers tuning.

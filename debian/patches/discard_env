@@ -1,0 +1,118 @@
+--- a/inetd.c
++++ b/inetd.c
+@@ -289,6 +289,7 @@ int	bump_nofile(void);
+ struct servtab *enter(struct servtab *);
+ int	matchconf(struct servtab *, struct servtab *);
+ int	dg_broadcast(struct in_addr *in);
++void	discard_stupid_environment(void);
+ 
+ #define NUMINT	(sizeof(intab) / sizeof(struct inent))
+ char	*CONFIG = _PATH_INETDCONF;
+@@ -302,14 +303,18 @@ int
+ main(int argc, char *argv[], char *envp[])
+ {
+ 	int ch;
++	int keepenv = 0;
+ 
+ 	initsetproctitle(argc, argv, envp);
+ 
+-	while ((ch = getopt(argc, argv, "dR:")) != -1)
++	while ((ch = getopt(argc, argv, "dER:")) != -1)
+ 		switch (ch) {
+ 		case 'd':
+ 			debug = 1;
+ 			break;
++		case 'E':
++			keepenv = 1;
++			break;
+ 		case 'R': {	/* invocation rate */
+ 			char *p;
+ 			int val;
+@@ -326,12 +331,16 @@ main(int argc, char *argv[], char *envp[
+ 		}
+ 		default:
+ 			fprintf(stderr,
+-			    "usage: inetd [-d] [-R rate] [configuration_file]\n");
++			    "usage: inetd [-dE] [-R rate] [configuration_file]\n");
+ 			exit(1);
+ 		}
+ 	argc -= optind;
+ 	argv += optind;
+ 
++	/* This must be called _after_ initsetproctitle and arg parsing */
++	if (!keepenv)
++		discard_stupid_environment();
++
+ 	uid = getuid();
+ 	if (uid != 0)
+ 		CONFIG = NULL;
+@@ -1888,3 +1897,45 @@ spawn(int ctrl, short events, void *xsep
+ 	if (!sep->se_wait && sep->se_socktype == SOCK_STREAM)
+ 		close(ctrl);
+ }
++
++/* from netkit+USAGI */
++void
++discard_stupid_environment(void)
++{
++	static const char *const junk[] = {
++		/* these are prefixes */
++		"CVS",
++		"DISPLAY=",
++		"EDITOR=",
++		"GROUP=",
++		"HOME=",
++		"IFS=",
++		"LD_",
++		"LOGNAME=",
++		"MAIL=",
++		"PATH=",
++		"PRINTER=",
++		"PWD=",
++		"SHELL=",
++		"SHLVL=",
++		"SSH",
++		"TERM",
++		"TMP",
++		"USER=",
++		"VISUAL=",
++		NULL
++		};
++
++	int i, k = 0;
++
++	for (i = 0; __environ[i]; i++) {
++		int found = 0, j;
++
++		for (j = 0; junk[j]; j++)
++			if (!strncmp(__environ[i], junk[j], strlen(junk[j])))
++				found = 1;
++		if (!found)
++			__environ[k++] = __environ[i];
++	}
++	__environ[k] = NULL;
++}
+--- a/inetd.8
++++ b/inetd.8
+@@ -38,6 +38,7 @@
+ .Sh SYNOPSIS
+ .Nm inetd
+ .Op Fl d
++.Op Fl E
+ .Op Fl R Ar rate
+ .Op Ar configuration_file
+ .Sh DESCRIPTION
+@@ -58,6 +59,13 @@ The options are as follows:
+ .Bl -tag -width Ds
+ .It Fl d
+ Turns on debugging.
++.It Fl E
++Prevents
++.Nm inetd
++from laundering the environment.  Without this option a selection of
++potentially harmful environment variables, including
++.Pa PATH ,
++will be removed and not inherited by services.
+ .It Fl R Ar rate
+ Specify the maximum number of times a service can be invoked
+ in one minute; the default is 256.

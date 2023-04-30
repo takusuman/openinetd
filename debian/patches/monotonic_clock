@@ -1,0 +1,41 @@
+Use a monotonic clock instead of gettimeofday(3).
+
+Inspired by https://svnweb.freebsd.org/base/head/usr.sbin/inetd/inetd.c?r1=229403&r2=236572 .
+
+--- a/inetd.c
++++ b/inetd.c
+@@ -163,6 +163,10 @@
+ #define pledge(a, b) (0)
+ #endif
+ 
++#ifndef CLOCK_BOOTTIME
++#define CLOCK_BOOTTIME CLOCK_MONOTONIC
++#endif
++
+ #define MINIMUM(a, b)	(((a) < (b)) ? (a) : (b))
+ 
+ #define	TOOMANY		256		/* don't start more than TOOMANY */
+@@ -228,7 +232,7 @@ struct	servtab {
+ 	int	se_ctrladdr_size;
+ 	int	se_max;			/* max # of instances of this service */
+ 	int	se_count;		/* number started since se_time */
+-	struct	timeval se_time;	/* start of se_count */
++	struct	timespec se_time;	/* start of se_count */
+ 	struct	servtab *se_next;
+ 	struct	event se_event;
+ } *servtab;
+@@ -1873,11 +1877,11 @@ spawn(int ctrl, short events, void *xsep
+ 	dofork = (sep->se_bi == 0 || sep->se_bi->bi_fork);
+ 	if (dofork) {
+ 		if (sep->se_count++ == 0)
+-		    (void)gettimeofday(&sep->se_time, NULL);
++		    (void)clock_gettime(CLOCK_BOOTTIME, &sep->se_time);
+ 		else if (sep->se_count >= sep->se_max) {
+-			struct timeval now;
++			struct timespec now;
+ 
+-			(void)gettimeofday(&now, NULL);
++			(void)clock_gettime(CLOCK_BOOTTIME, &now);
+ 			if (now.tv_sec - sep->se_time.tv_sec >
+ 			    CNT_INTVL) {
+ 				sep->se_time = now;

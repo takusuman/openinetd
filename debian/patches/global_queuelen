@@ -1,0 +1,70 @@
+--- a/inetd.c
++++ b/inetd.c
+@@ -173,6 +173,7 @@ int lflag = 0;
+ #endif
+ 
+ int	 debug = 0;
++int	 global_queuelen = 128;
+ int	 maxsock;
+ int	 toomany = TOOMANY;
+ int	 timingout;
+@@ -313,7 +314,7 @@ main(int argc, char *argv[], char *envp[
+ 
+ 	initsetproctitle(argc, argv, envp);
+ 
+-	while ((ch = getopt(argc, argv, "dEilR:")) != -1)
++	while ((ch = getopt(argc, argv, "dEilq:R:")) != -1)
+ 		switch (ch) {
+ 		case 'd':
+ 			debug = 1;
+@@ -333,6 +334,11 @@ main(int argc, char *argv[], char *envp[
+ 			    progname);
+ 			exit(1);
+ #endif
++		case 'q':
++			global_queuelen = atoi(optarg);
++			if (global_queuelen < 10)
++				global_queuelen = 10;
++			break;
+ 		case 'R': {	/* invocation rate */
+ 			char *p;
+ 			int val;
+@@ -349,7 +355,7 @@ main(int argc, char *argv[], char *envp[
+ 		}
+ 		default:
+ 			fprintf(stderr,
+-			    "usage: inetd [-dEil] [-R rate] [configuration_file]\n");
++			    "usage: inetd [-dEil] [-q len] [-R rate] [configuration_file]\n");
+ 			exit(1);
+ 		}
+ 	argc -= optind;
+@@ -925,7 +931,7 @@ setsockopt(fd, SOL_SOCKET, opt, &on, siz
+ 		return;
+ 	}
+ 	if (sep->se_socktype == SOCK_STREAM)
+-		listen(sep->se_fd, 10);
++		listen(sep->se_fd, global_queuelen);
+ 
+ 	if (!sep->se_wait && sep->se_socktype == SOCK_STREAM) {
+ 		event_set(&sep->se_event, sep->se_fd, EV_READ|EV_PERSIST,
+--- a/inetd.8
++++ b/inetd.8
+@@ -41,6 +41,7 @@
+ .Op Fl E
+ .Op Fl i
+ .Op Fl l
++.Op Fl q Ar length
+ .Op Fl R Ar rate
+ .Op Ar configuration_file
+ .Sh DESCRIPTION
+@@ -77,6 +78,10 @@ Internal services cannot be wrapped.  Wh
+ is silently not executed even if present in
+ .Pa /etc/inetd.conf
+ and instead libwrap is called directly by inetd.
++.It Fl q Ar length
++Specify the length of the
++.Xr listen 2
++connections queue; the default is 128.
+ .It Fl R Ar rate
+ Specify the maximum number of times a service can be invoked
+ in one minute; the default is 256.

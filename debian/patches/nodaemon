@@ -1,0 +1,66 @@
+--- a/inetd.8
++++ b/inetd.8
+@@ -39,6 +39,7 @@
+ .Nm inetd
+ .Op Fl d
+ .Op Fl E
++.Op Fl i
+ .Op Fl l
+ .Op Fl R Ar rate
+ .Op Ar configuration_file
+@@ -67,6 +68,8 @@ from laundering the environment.  Withou
+ potentially harmful environment variables, including
+ .Pa PATH ,
+ will be removed and not inherited by services.
++.It Fl i
++Makes the program not daemonize itself.
+ .It Fl l
+ Turns on libwrap connection logging and access control.
+ Internal services cannot be wrapped.  When enabled,
+--- a/inetd.c
++++ b/inetd.c
+@@ -309,10 +309,11 @@ main(int argc, char *argv[], char *envp[
+ {
+ 	int ch;
+ 	int keepenv = 0;
++	int nodaemon = 0;
+ 
+ 	initsetproctitle(argc, argv, envp);
+ 
+-	while ((ch = getopt(argc, argv, "dElR:")) != -1)
++	while ((ch = getopt(argc, argv, "dEilR:")) != -1)
+ 		switch (ch) {
+ 		case 'd':
+ 			debug = 1;
+@@ -320,6 +321,9 @@ main(int argc, char *argv[], char *envp[
+ 		case 'E':
+ 			keepenv = 1;
+ 			break;
++		case 'i':
++			nodaemon = 1;
++			break;
+ 		case 'l':
+ #ifdef LIBWRAP
+ 			lflag = 1;
+@@ -345,7 +349,7 @@ main(int argc, char *argv[], char *envp[
+ 		}
+ 		default:
+ 			fprintf(stderr,
+-			    "usage: inetd [-dEl] [-R rate] [configuration_file]\n");
++			    "usage: inetd [-dEil] [-R rate] [configuration_file]\n");
+ 			exit(1);
+ 		}
+ 	argc -= optind;
+@@ -371,7 +375,11 @@ main(int argc, char *argv[], char *envp[
+ 
+ 	umask(022);
+ 	if (debug == 0) {
+-		daemon(0, 0);
++		if (nodaemon == 0)
++			if (daemon(0, 0) < 0) {
++				syslog(LOG_ERR, "daemon(0, 0): %m");
++				exit(1);
++			}
+ #ifdef HAVE_SETLOGIN
+ 		if (uid == 0)
+ 			(void) setlogin("");

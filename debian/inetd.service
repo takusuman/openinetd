@@ -1,0 +1,17 @@
+[Unit]
+Description=Internet superserver
+Documentation=man:inetd(8)
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/etc/inetd.conf
+
+[Service]
+Type=notify
+ExecStart=/usr/sbin/inetd
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+WatchdogSec=5
+KillMode=process
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,23 @@
+# how to import a new upstream snapshot:
+
+mkdir TEMP
+cd TEMP
+export CVS_RSH=ssh
+cvs -d anoncvs@anoncvs.fr.openbsd.org:/cvs/src/usr.sbin/inetd/ co .
+cvs2cl
+rm -rf CVS
+VERSION="$(head -1 ChangeLog | sed -re 's/-//g; s/ .*//; s/^/0./')"
+
+rsync -a ../openbsd-inetd/.git/ .git/
+git checkout upstream
+git add .
+git commit -m "Import upstream version $VERSION"
+git tag -s -m "Upstream version $VERSION" v$VERSION
+git switch master
+git merge upstream -m "Merge upstream version v$VERSION"
+dch --newversion=${VERSION}-1 XXX
+gbp export-orig
+
+cd ..
+mv openbsd-inetd OLD-openbsd-inetd
+mv TEMP openbsd-inetd

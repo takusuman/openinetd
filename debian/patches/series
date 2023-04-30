@@ -1,0 +1,19 @@
+# portability
+makefile
+misc_portability
+setproctitle
+
+# features
+discard_env
+libwrap
+nodaemon
+global_queuelen
+print_pause_time
+ipv4_compatible
+tcp46
+buftuning
+monotonic_clock
+write_pidfile
+sd_daemon
+libtirpc
+default_v4v6

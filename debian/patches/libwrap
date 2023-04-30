@@ -1,0 +1,144 @@
+--- a/inetd.c
++++ b/inetd.c
+@@ -167,6 +167,11 @@
+ #define	CNT_INTVL	60		/* servers in CNT_INTVL sec. */
+ #define	RETRYTIME	(60*10)		/* retry after bind or server fail */
+ 
++#ifdef LIBWRAP
++# include <tcpd.h>
++int lflag = 0;
++#endif
++
+ int	 debug = 0;
+ int	 maxsock;
+ int	 toomany = TOOMANY;
+@@ -307,7 +312,7 @@ main(int argc, char *argv[], char *envp[
+ 
+ 	initsetproctitle(argc, argv, envp);
+ 
+-	while ((ch = getopt(argc, argv, "dER:")) != -1)
++	while ((ch = getopt(argc, argv, "dElR:")) != -1)
+ 		switch (ch) {
+ 		case 'd':
+ 			debug = 1;
+@@ -315,6 +320,15 @@ main(int argc, char *argv[], char *envp[
+ 		case 'E':
+ 			keepenv = 1;
+ 			break;
++		case 'l':
++#ifdef LIBWRAP
++			lflag = 1;
++			break;
++#else
++			fprintf(stderr, "%s: libwrap support not enabled",
++			    progname);
++			exit(1);
++#endif
+ 		case 'R': {	/* invocation rate */
+ 			char *p;
+ 			int val;
+@@ -331,7 +345,7 @@ main(int argc, char *argv[], char *envp[
+ 		}
+ 		default:
+ 			fprintf(stderr,
+-			    "usage: inetd [-dE] [-R rate] [configuration_file]\n");
++			    "usage: inetd [-dEl] [-R rate] [configuration_file]\n");
+ 			exit(1);
+ 		}
+ 	argc -= optind;
+@@ -1781,6 +1795,47 @@ spawn(int ctrl, short events, void *xsep
+ 		event_del(&sep->se_event);
+ 	}
+ 	if (pid == 0) {
++#ifdef LIBWRAP
++		if (lflag && !sep->se_wait && !sep->se_bi && sep->se_socktype == SOCK_STREAM) {
++			struct request_info req;
++			char *service;
++
++			/* do not execute tcpd if it is in the config */
++			if (strcmp(sep->se_server, "/usr/sbin/tcpd") == 0) {
++				char *p, *name;
++
++				free(sep->se_server);
++				name = sep->se_server = sep->se_argv[0];
++				for (p = name; *p; p++)
++					if (*p == '/')
++						name = p + 1;
++				sep->se_argv[0] = newstr(name);
++			}
++
++			request_init(&req, RQ_DAEMON, sep->se_argv[0],
++			    RQ_FILE, ctrl, NULL);
++			fromhost(&req);
++			if (getnameinfo(&sep->se_ctrladdr,
++			    sizeof(sep->se_ctrladdr), NULL, 0, buf,
++			    sizeof(buf), 0) != 0) {
++				/* shouldn't happen */
++				snprintf(buf, sizeof buf, "%d",
++				    ntohs(sep->se_ctrladdr_in.sin_port));
++			}
++			service = buf;
++			if (!hosts_access(&req)) {
++				syslog(deny_severity, "refused connection"
++				    " from %.500s, service %s (%s)",
++				    eval_client(&req), service, sep->se_proto);
++				if (sep->se_socktype != SOCK_STREAM)
++					recv(0, buf, sizeof (buf), 0);
++				exit(1);
++			}
++			syslog(allow_severity,
++			    "connection from %.500s, service %s (%s)",
++			    eval_client(&req), service, sep->se_proto);
++		}
++#endif
+ 		if (sep->se_bi) {
+ 			if (dofork && pledge("stdio inet", NULL) == -1)
+ 				err(1, "pledge");
+--- a/inetd.8
++++ b/inetd.8
+@@ -39,6 +39,7 @@
+ .Nm inetd
+ .Op Fl d
+ .Op Fl E
++.Op Fl l
+ .Op Fl R Ar rate
+ .Op Ar configuration_file
+ .Sh DESCRIPTION
+@@ -66,6 +67,13 @@ from laundering the environment.  Withou
+ potentially harmful environment variables, including
+ .Pa PATH ,
+ will be removed and not inherited by services.
++.It Fl l
++Turns on libwrap connection logging and access control.
++Internal services cannot be wrapped.  When enabled,
++.Pa /usr/sbin/tcpd
++is silently not executed even if present in
++.Pa /etc/inetd.conf
++and instead libwrap is called directly by inetd.
+ .It Fl R Ar rate
+ Specify the maximum number of times a service can be invoked
+ in one minute; the default is 256.
+@@ -331,6 +339,23 @@ rereads its configuration file when it r
+ .Dv SIGHUP .
+ Services may be added, deleted or modified when the configuration file
+ is reread.
++.Ss libwrap
++Support for
++.Tn TCP
++wrappers is included with
++.Nm
++to provide built-in tcpd-like access control functionality.
++An external tcpd program is not needed.
++You do not need to change the
++.Pa /etc/inetd.conf
++server-program entry to enable this capability.
++.Nm
++uses
++.Pa /etc/hosts.allow
++and
++.Pa /etc/hosts.deny
++for access control facility configurations, as described in
++.Xr hosts_access 5 .
+ .Ss IPv6 TCP/UDP behavior
+ If you wish to run a server for IPv4 and IPv6 traffic,
+ you'll need to run two separate processes for the same server program,
