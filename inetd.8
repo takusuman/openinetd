@@ -39,6 +39,7 @@
 .Nm inetd
 .Op Fl d
 .Op Fl E
+.Op Fl i
 .Op Fl l
 .Op Fl R Ar rate
 .Op Ar configuration_file
@@ -67,6 +68,8 @@ from laundering the environment.  Without this option a selection of
 potentially harmful environment variables, including
 .Pa PATH ,
 will be removed and not inherited by services.
+.It Fl i
+Makes the program not daemonize itself.
 .It Fl l
 Turns on libwrap connection logging and access control.
 Internal services cannot be wrapped.  When enabled,

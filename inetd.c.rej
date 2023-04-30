@@ -1,11 +1,15 @@
 --- inetd.c
 +++ inetd.c
-@@ -312,7 +317,7 @@ main(int argc, char *argv[], char *envp[
+@@ -309,10 +309,11 @@ main(int argc, char *argv[], char *envp[
+ {
+ 	int ch;
+ 	int keepenv = 0;
++	int nodaemon = 0;
  
  	initsetproctitle(argc, argv, envp);
  
--	while ((ch = getopt(argc, argv, "dER:")) != -1)
-+	while ((ch = getopt(argc, argv, "dElR:")) != -1)
+-	while ((ch = getopt(argc, argv, "dElR:")) != -1)
++	while ((ch = getopt(argc, argv, "dEilR:")) != -1)
  		switch (ch) {
  		case 'd':
  			debug = 1;
