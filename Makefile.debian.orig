@@ -12,9 +12,6 @@ LIBS += $(shell $(PKG_CONFIG) --libs libbsd-overlay)
 DEFS += $(shell $(PKG_CONFIG) --cflags libevent)
 LIBS += $(shell $(PKG_CONFIG) --libs libevent)
 
-DEFS += $(shell $(PKG_CONFIG) --cflags libsystemd)
-LIBS += $(shell $(PKG_CONFIG) --libs libsystemd)
-
 CPPFLAGS += $(DEFS)
 
 inetd_OBJECTS := inetd.o
