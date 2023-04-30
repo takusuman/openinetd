@@ -1,22 +1,32 @@
 --- inetd.c
 +++ inetd.c
-@@ -303,14 +304,18 @@ int
- main(int argc, char *argv[], char *envp[])
- {
- 	int ch;
-+	int keepenv = 0;
+@@ -314,7 +315,7 @@ main(int argc, char *argv[], char *envp[
  
  	initsetproctitle(argc, argv, envp);
  
--	while ((ch = getopt(argc, argv, "dR:")) != -1)
-+	while ((ch = getopt(argc, argv, "dER:")) != -1)
+-	while ((ch = getopt(argc, argv, "dEilR:")) != -1)
++	while ((ch = getopt(argc, argv, "dEilq:R:")) != -1)
  		switch (ch) {
  		case 'd':
  			debug = 1;
- 			break;
-+		case 'E':
-+			keepenv = 1;
+@@ -334,6 +335,11 @@ main(int argc, char *argv[], char *envp[
+ 			    progname);
+ 			exit(1);
+ #endif
++		case 'q':
++			global_queuelen = atoi(optarg);
++			if (global_queuelen < 10)
++				global_queuelen = 10;
 +			break;
  		case 'R': {	/* invocation rate */
  			char *p;
  			int val;
+@@ -350,7 +356,7 @@ main(int argc, char *argv[], char *envp[
+ 		}
+ 		default:
+ 			fprintf(stderr,
+-			    "usage: inetd [-dEil] [-R rate] [configuration_file]\n");
++			    "usage: inetd [-dEil] [-q len] [-R rate] [configuration_file]\n");
+ 			exit(1);
+ 		}
+ 	argc -= optind;

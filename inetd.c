@@ -160,6 +160,7 @@
 #define	RETRYTIME	(60*10)		/* retry after bind or server fail */
 
 int	 debug = 0;
+int	 global_queuelen = 128;
 int	 maxsock;
 int	 toomany = TOOMANY;
 int	 timingout;
@@ -882,7 +883,7 @@ setsockopt(fd, SOL_SOCKET, opt, &on, sizeof (on))
 		return;
 	}
 	if (sep->se_socktype == SOCK_STREAM)
-		listen(sep->se_fd, 10);
+		listen(sep->se_fd, global_queuelen);
 
 	if (!sep->se_wait && sep->se_socktype == SOCK_STREAM) {
 		event_set(&sep->se_event, sep->se_fd, EV_READ|EV_PERSIST,

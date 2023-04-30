@@ -283,6 +283,7 @@ int	bump_nofile(void);
 struct servtab *enter(struct servtab *);
 int	matchconf(struct servtab *, struct servtab *);
 int	dg_broadcast(struct in_addr *in);
+void	discard_stupid_environment(void);
 
 #define NUMINT	(sizeof(intab) / sizeof(struct inent))
 char	*CONFIG = _PATH_INETDCONF;
@@ -319,11 +320,15 @@ main(int argc, char *argv[])
 		case '?':
 		default:
 			fprintf(stderr,
-			    "usage: inetd [-d] [-R rate] [configuration_file]\n");
+			    "usage: inetd [-dE] [-R rate] [configuration_file]\n");
 			exit(1);
 		}
 	argc -= optind;
 	argv += optind;
+
+	/* This must be called _after_ initsetproctitle and arg parsing */
+	if (!keepenv)
+		discard_stupid_environment();
 
 	uid = getuid();
 	if (uid != 0)
@@ -1953,4 +1958,46 @@ spawn(int ctrl, short events, void *xsep)
 	}
 	if (!sep->se_wait && sep->se_socktype == SOCK_STREAM)
 		close(ctrl);
+}
+
+/* from netkit+USAGI */
+void
+discard_stupid_environment(void)
+{
+	static const char *const junk[] = {
+		/* these are prefixes */
+		"CVS",
+		"DISPLAY=",
+		"EDITOR=",
+		"GROUP=",
+		"HOME=",
+		"IFS=",
+		"LD_",
+		"LOGNAME=",
+		"MAIL=",
+		"PATH=",
+		"PRINTER=",
+		"PWD=",
+		"SHELL=",
+		"SHLVL=",
+		"SSH",
+		"TERM",
+		"TMP",
+		"USER=",
+		"VISUAL=",
+		NULL
+		};
+
+	int i, k = 0;
+
+	for (i = 0; __environ[i]; i++) {
+		int found = 0, j;
+
+		for (j = 0; junk[j]; j++)
+			if (!strncmp(__environ[i], junk[j], strlen(junk[j])))
+				found = 1;
+		if (!found)
+			__environ[k++] = __environ[i];
+	}
+	__environ[k] = NULL;
 }
