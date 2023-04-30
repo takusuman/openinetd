@@ -125,24 +125,33 @@
 #include <unistd.h>
 #include <limits.h>
 #include <string.h>
-#ifdef HAVE_SETUSERCONTEXT
+
+#if defined(HAVE_SETUSERCONTEXT)
 #include <login_cap.h>
 #endif
-#ifdef HAVE_GETIFADDRS
+
+#if defined(HAVE_GETIFADDRS)
 #include <ifaddrs.h>
 #endif
+#if defined(HAVE_SYSTEMD)
 #include <systemd/sd-daemon.h>
+#else // No systemd
+	int sd_notify(int unset_environment, const char *state){
+		return 0;
+	}
+#endif
+
 #include <sys/time.h>
 #include <rpc/rpc.h>
 #include <rpc/pmap_clnt.h>
 #include <event.h>
 #include "pathnames.h"
 
-#ifndef HAVE_PLEDGE
+#if !defined(HAVE_PLEDGE)
 #define pledge(a, b) (0)
 #endif
 
-#ifndef CLOCK_BOOTTIME
+#if !defined(CLOCK_BOOTTIME)
 #define CLOCK_BOOTTIME CLOCK_MONOTONIC
 #endif
 
@@ -152,11 +161,12 @@
 #define	CNT_INTVL	60		/* servers in CNT_INTVL sec. */
 #define	RETRYTIME	(60*10)		/* retry after bind or server fail */
 
-#ifdef LIBWRAP
-# include <tcpd.h>
+#if defined(LIBWRAP)
+#include <tcpd.h>
 int lflag = 0;
 #endif
 
+char	*progname;
 int	 debug = 0;
 int	 global_queuelen = 128;
 int	 maxsock;
@@ -301,10 +311,10 @@ void notify_watchdog(int fd, short event, void *arg)
 int
 main(int argc, char *argv[], char *envp[])
 {
-	int ch;
-
+	progname = argv[0];
 	initsetproctitle(argc, argv, envp);
 
+	int ch;
 	while ((ch = getopt(argc, argv, "dR:")) != -1)
 		switch (ch) {
 		case 'd':
@@ -314,7 +324,7 @@ main(int argc, char *argv[], char *envp[])
 			nodaemon = 1;
 			break;
 		case 'l':
-#ifdef LIBWRAP
+#if defined(LIBWRAP)
 			lflag = 1;
 			break;
 #else
@@ -338,14 +348,12 @@ main(int argc, char *argv[], char *envp[])
 		}
 		case '?':
 		default:
-			fprintf(stderr,
-			    "usage: inetd [-dEil] [-R rate] [configuration_file]\n");
-			exit(1);
+			  usage();
 		}
 	argc -= optind;
 	argv += optind;
 
-	/* This must be called _after_ initsetproctitle and arg parsing */
+	// This must be called _after_ initsetproctitle and arg parsing
 	if (!keepenv)
 		discard_stupid_environment();
 
@@ -363,8 +371,11 @@ main(int argc, char *argv[], char *envp[])
 		exit(1);
 	}
 
+
+	// systemd notify-specific
 	if (getenv("NOTIFY_SOCKET"))
 	    nodaemon = 1;
+
 
 	umask(022);
 	if (debug == 0) {
@@ -373,7 +384,7 @@ main(int argc, char *argv[], char *envp[])
 				syslog(LOG_ERR, "daemon(0, 0): %m");
 				exit(1);
 			}
-#ifdef HAVE_SETLOGIN
+#if defined(HAVE_SETLOGIN)
 		if (uid == 0)
 			(void) setlogin("");
 #endif
@@ -418,6 +429,7 @@ main(int argc, char *argv[], char *envp[])
 
 	signal(SIGPIPE, SIG_IGN);
 
+#if defined(HAVE_SYSTEMD)
 	{
 	    uint64_t wd_timeout;
 
@@ -426,14 +438,15 @@ main(int argc, char *argv[], char *envp[])
 		struct event *ev = malloc(sizeof(struct event));
 
 		wd_timeout = wd_timeout / 2;
-		tv.tv_usec = wd_timeout % 1000000;
+		tv.tv_usec = wd_timeout % 1000000;h
 		tv.tv_sec = wd_timeout / 1000000;
 		event_set(ev, -1, EV_PERSIST, notify_watchdog, NULL);
 		event_add(ev, &tv);
 	    }
 	}
+#endif
 
-	/* space for daemons to overwrite environment for ps */
+	// Space for daemons to overwrite environment for ps
 	{
 #define DUMMYSIZE 100
 		char dummy[DUMMYSIZE];
@@ -480,9 +493,7 @@ gettcp(int fd, short events, void *xsep)
 		if (getnameinfo((struct sockaddr *)&peer, plen, NULL, 0,
 		    sbuf, sizeof(sbuf), NI_NUMERICSERV) == 0 &&
 		    strtonum(sbuf, 1, USHRT_MAX, NULL) == 20) {
-			/*
-			 * ignore things that look like ftp bounce
-			 */
+			 // Ignore things that look like ftp bounce
 			close(ctrl);
 			return;
 		}
@@ -2179,4 +2190,9 @@ discard_stupid_environment(void)
 			__environ[k++] = __environ[i];
 	}
 	__environ[k] = NULL;
+}
+
+void usage(void) {
+	fprintf(stderr, "usage: %s [-dEil] [-R rate] [configuration_file]\n", progname);
+	exit(1);
 }
