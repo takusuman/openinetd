@@ -1043,6 +1043,8 @@ getconfigent(void)
 	char *cp0, *buf0, *buf1, *sz0, *sz1;
 	int val;
 	int argc;
+	static int proto_override;
+	static char *saved_cp;
 
 	sep = calloc(1, sizeof(struct servtab));
 	if (sep == NULL) {
@@ -1052,12 +1054,24 @@ getconfigent(void)
 more:
 	freeconfig(sep);
 
+	if (proto_override) {
+	    /* process again the same configuration entry */
+	    cp = saved_cp;
+	    saved_cp = NULL;
+	} else {
+		if (saved_cp)
+		    free(saved_cp);
+
 	while ((cp = nextline(fconfig)) && *cp == '#')
 		;
 	if (cp == NULL) {
 		free(sep);
 		return (NULL);
 	}
+
+		/* keep a copy of the configuration entry */
+		saved_cp = newstr(cp);
+	} /* proto_override */
 
 	memset(sep, 0, sizeof *sep);
 	arg = skip(&cp, 0);
@@ -1201,9 +1215,37 @@ do { \
 	} else {
 		int s;
 
-		sep->se_family = AF_INET;
-		if (sep->se_proto[strlen(sep->se_proto) - 1] == '6')
+		if (proto_override) {
+			size_t l;
+			char *s;
+
+			proto_override = 0;
+			/* append "6" to se_proto */
 			sep->se_family = AF_INET6;
+			l = strlen(sep->se_proto);
+			s = malloc(l + 1 + 1);
+			if (s == NULL) {
+			    syslog(LOG_ERR, "Out of memory.");
+			    exit(1);
+			}
+			(void)strlcpy(s, sep->se_proto, l + 1);
+			s[l] = '6';
+			s[l+1] = '\0';
+			free(sep->se_proto);
+			sep->se_proto = s;
+		} else if (sep->se_proto[strlen(sep->se_proto) - 1] == '4')
+			sep->se_family = AF_INET;
+		else if (sep->se_proto[strlen(sep->se_proto) - 1] == '6')
+			sep->se_family = AF_INET6;
+		else {
+			/*
+			 * If no "4" or "6" was specified then process the
+			 * entry as IPv4 but take note that we want to
+			 * process it later a second time as "6"
+			 */
+			sep->se_family = AF_INET;
+			proto_override = 1;
+		}
 
 		/* check if the family is supported */
 		s = socket(sep->se_family, SOCK_DGRAM, 0);

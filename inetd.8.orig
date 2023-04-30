@@ -88,7 +88,7 @@ The fields of the configuration file are as follows:
 .Bd -unfilled -offset indent
 service name
 socket type
-protocol
+protocol[,sndbuf=size][,rcvbuf=size]
 wait/nowait[.max]
 user[.group] or user[:group]
 server program
@@ -100,7 +100,7 @@ based service, the entry would contain these fields.
 .Bd -unfilled -offset indent
 service name/version
 socket type
-rpc/protocol
+rpc/protocol[,sndbuf=size][,rcvbuf=size]
 wait/nowait[.max]
 user[.group] or user[:group]
 server program
@@ -208,6 +208,30 @@ of
 .Dq unix
 is used to specify a socket in the
 .Ux Ns -domain .
+.Pp
+In addition to the protocol, the configuration file may specify the
+send and receive socket buffer sizes for the listening socket.
+This is especially useful for
+.Tn TCP
+as the window scale factor, which is based on the receive socket
+buffer size, is advertised when the connection handshake occurs,
+thus the socket buffer size for the server must be set on the listen socket.
+By increasing the socket buffer sizes, better
+.Tn TCP
+performance may be realized in some situations.
+The socket buffer sizes are specified by appending their values to
+the protocol specification as follows:
+.Bd -literal -offset indent
+tcp,rcvbuf=16384
+tcp,sndbuf=64k
+tcp,rcvbuf=64k,sndbuf=1m
+.Ed
+.Pp
+A literal value may be specified, or modified using
+.Sq k
+to indicate kilobytes or
+.Sq m
+to indicate megabytes.
 .Pp
 The
 .Em wait/nowait
