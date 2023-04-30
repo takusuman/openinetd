@@ -1908,8 +1908,9 @@ spawn(int ctrl, short events, void *xsep)
 					return;
 				}
 				syslog(LOG_ERR,
-				    "%s/%s server failing (looping), service terminated",
-				    sep->se_service, sep->se_proto);
+				    "%s/%s server failing (looping), service terminated for %d min",
+				    sep->se_service, sep->se_proto,
+				    RETRYTIME/60);
 				if (!sep->se_wait &&
 				    sep->se_socktype == SOCK_STREAM)
 					close(ctrl);

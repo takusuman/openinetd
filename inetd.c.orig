@@ -321,6 +321,9 @@ main(int argc, char *argv[])
 		case 'd':
 			debug = 1;
 			break;
+		case 'i':
+			nodaemon = 1;
+			break;
 		case 'l':
 #ifdef LIBWRAP
 			lflag = 1;
@@ -347,7 +350,7 @@ main(int argc, char *argv[])
 		case '?':
 		default:
 			fprintf(stderr,
-			    "usage: inetd [-dEl] [-R rate] [configuration_file]\n");
+			    "usage: inetd [-dEil] [-R rate] [configuration_file]\n");
 			exit(1);
 		}
 	argc -= optind;
@@ -373,7 +376,11 @@ main(int argc, char *argv[])
 
 	umask(022);
 	if (debug == 0) {
-		daemon(0, 0);
+		if (nodaemon == 0)
+			if (daemon(0, 0) < 0) {
+				syslog(LOG_ERR, "daemon(0, 0): %m");
+				exit(1);
+			}
 #ifdef HAVE_SETLOGIN
 		if (uid == 0)
 			(void) setlogin("");
