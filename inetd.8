@@ -39,6 +39,7 @@
 .Nm inetd
 .Op Fl d
 .Op Fl E
+.Op Fl l
 .Op Fl R Ar rate
 .Op Ar configuration_file
 .Sh DESCRIPTION
@@ -70,6 +71,13 @@ from laundering the environment.  Without this option a selection of
 potentially harmful environment variables, including
 .Pa PATH ,
 will be removed and not inherited by services.
+.It Fl l
+Turns on libwrap connection logging and access control.
+Internal services cannot be wrapped.  When enabled,
+.Pa /usr/sbin/tcpd
+is silently not executed even if present in
+.Pa /etc/inetd.conf
+and instead libwrap is called directly by inetd.
 .It Fl R Ar rate
 Specify the maximum number of times a service can be invoked
 in one minute; the default is 256.
@@ -356,6 +364,23 @@ rereads its configuration file when it receives a hangup signal,
 .Dv SIGHUP .
 Services may be added, deleted or modified when the configuration file
 is reread.
+.Ss libwrap
+Support for
+.Tn TCP
+wrappers is included with
+.Nm
+to provide built-in tcpd-like access control functionality.
+An external tcpd program is not needed.
+You do not need to change the
+.Pa /etc/inetd.conf
+server-program entry to enable this capability.
+.Nm
+uses
+.Pa /etc/hosts.allow
+and
+.Pa /etc/hosts.deny
+for access control facility configurations, as described in
+.Xr hosts_access 5 .
 .Ss IPv6 TCP/UDP behavior
 The default is to run two servers: one for IPv4 and one for IPv6 traffic.
 If you have different requirements then you may specify one or two

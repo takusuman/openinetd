@@ -159,6 +159,11 @@
 #define	CNT_INTVL	60		/* servers in CNT_INTVL sec. */
 #define	RETRYTIME	(60*10)		/* retry after bind or server fail */
 
+#ifdef LIBWRAP
+# include <tcpd.h>
+int lflag = 0;
+#endif
+
 int	 debug = 0;
 int	 global_queuelen = 128;
 int	 maxsock;
@@ -304,6 +309,15 @@ main(int argc, char *argv[])
 		case 'd':
 			debug = 1;
 			break;
+		case 'l':
+#ifdef LIBWRAP
+			lflag = 1;
+			break;
+#else
+			fprintf(stderr, "%s: libwrap support not enabled",
+			    progname);
+			exit(1);
+#endif
 		case 'R': {	/* invocation rate */
 			char *p;
 			int val;
@@ -321,7 +335,7 @@ main(int argc, char *argv[])
 		case '?':
 		default:
 			fprintf(stderr,
-			    "usage: inetd [-dE] [-R rate] [configuration_file]\n");
+			    "usage: inetd [-dEl] [-R rate] [configuration_file]\n");
 			exit(1);
 		}
 	argc -= optind;
@@ -1897,6 +1911,47 @@ spawn(int ctrl, short events, void *xsep)
 		event_del(&sep->se_event);
 	}
 	if (pid == 0) {
+#ifdef LIBWRAP
+		if (lflag && !sep->se_wait && !sep->se_bi && sep->se_socktype == SOCK_STREAM) {
+			struct request_info req;
+			char *service;
+
+			/* do not execute tcpd if it is in the config */
+			if (strcmp(sep->se_server, "/usr/sbin/tcpd") == 0) {
+				char *p, *name;
+
+				free(sep->se_server);
+				name = sep->se_server = sep->se_argv[0];
+				for (p = name; *p; p++)
+					if (*p == '/')
+						name = p + 1;
+				sep->se_argv[0] = newstr(name);
+			}
+
+			request_init(&req, RQ_DAEMON, sep->se_argv[0],
+			    RQ_FILE, ctrl, NULL);
+			fromhost(&req);
+			if (getnameinfo(&sep->se_ctrladdr,
+			    sizeof(sep->se_ctrladdr), NULL, 0, buf,
+			    sizeof(buf), 0) != 0) {
+				/* shouldn't happen */
+				snprintf(buf, sizeof buf, "%d",
+				    ntohs(sep->se_ctrladdr_in.sin_port));
+			}
+			service = buf;
+			if (!hosts_access(&req)) {
+				syslog(deny_severity, "refused connection"
+				    " from %.500s, service %s (%s)",
+				    eval_client(&req), service, sep->se_proto);
+				if (sep->se_socktype != SOCK_STREAM)
+					recv(0, buf, sizeof (buf), 0);
+				exit(1);
+			}
+			syslog(allow_severity,
+			    "connection from %.500s, service %s (%s)",
+			    eval_client(&req), service, sep->se_proto);
+		}
+#endif
 		if (sep->se_bi) {
 			if (dofork && pledge("stdio inet", NULL) == -1)
 				err(1, "pledge");
