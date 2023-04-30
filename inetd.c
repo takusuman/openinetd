@@ -137,9 +137,7 @@
 #if defined(HAVE_SYSTEMD)
 #include <systemd/sd-daemon.h>
 #else // No systemd
-	int sd_notify(int unset_environment, const char *state){
-		return 0;
-	}
+#define sd_notify(a, b) (0)
 #endif
 
 #include <sys/time.h>
@@ -238,11 +236,12 @@ void machtime_dg(int, struct servtab *);
 void daytime_dg(int, struct servtab *);
 void chargen_dg(int, struct servtab *);
 
+// Built-ins
 struct biltin {
-	char	*bi_service;		/* internally provided service name */
-	int	bi_socktype;		/* type of socket supported */
-	short	bi_fork;		/* 1 if should fork before call */
-	short	bi_wait;		/* 1 if should wait for child */
+	char	*bi_service;		// internally provided service name
+	int	bi_socktype;		// type of socket supported
+	short	bi_fork;		// 1 if should fork before call
+	short	bi_wait;		// 1 if should wait for child
 	void	(*bi_fn)(int, struct servtab *);
 } biltins[] = {
 	/* Echo received data */
@@ -306,17 +305,13 @@ void		initring(void);
 u_int32_t	machtime(void);
 
 #if defined(HAVE_SYSTEMD)
-void notify_watchdog(int fd, short event, void *arg)
-{
+void notify_watchdog(int fd, short event, void *arg) {
     sd_notify(0, "WATCHDOG=1\n");
 }
 #endif
 
-int
-main(int argc, char *argv[], char *envp[])
-{
+int main(int argc, char *argv[]) {
 	progname = argv[0];
-//	initsetproctitle(argc, argv, envp);
 
 	int ch;
 	int nodaemon = 0;
@@ -361,28 +356,30 @@ main(int argc, char *argv[], char *envp[])
 	argv += optind;
 
 	// This must be called _after_ initsetproctitle and arg parsing
-	if (!keepenv)
+	// Although we ditched initsetproctitle(), this shall still work
+	if ( !keepenv ) {
 		discard_stupid_environment();
+	}
 
 	uid = getuid();
-	if (uid != 0)
+	if ( uid != 0 )
 		CONFIG = NULL;
-	if (argc > 0)
+	if ( argc > 0 )
 		CONFIG = argv[0];
-	if (CONFIG == NULL) {
-		fprintf(stderr, "inetd: non-root must specify a config file\n");
+	if ( CONFIG == NULL ) {
+		fprintf(stderr, "%s: non-root must specify a config file\n", progname);
 		exit(1);
 	}
 	if (argc > 1) {
-		fprintf(stderr, "inetd: more than one argument specified\n");
+		fprintf(stderr, "%s: more than one argument specified\n", progname);
 		exit(1);
 	}
 
 
 	// systemd notify-specific
-	if (getenv("NOTIFY_SOCKET"))
+	if ( getenv("NOTIFY_SOCKET") ) {
 	    nodaemon = 1;
-
+	}
 
 	umask(022);
 	if (debug == 0) {
@@ -407,7 +404,7 @@ main(int argc, char *argv[], char *envp[])
 	if (uid == 0) {
 		gid_t gid = getgid();
 
-		/* If run by hand, ensure groups vector gets trashed */
+		// If run by hand, ensure groups vector gets trashed
 		setgroups(1, &gid);
 	}
 
@@ -471,9 +468,7 @@ main(int argc, char *argv[], char *envp[])
 	return (0);
 }
 
-void
-gettcp(int fd, short events, void *xsep)
-{
+void gettcp(int fd, short events, void *xsep) {
 	struct servtab *sep = xsep;
 	int ctrl;
 
@@ -513,9 +508,7 @@ gettcp(int fd, short events, void *xsep)
 	spawn(ctrl, 0, sep);
 }
 
-int
-dg_badinput(struct sockaddr *sa)
-{
+int dg_badinput(struct sockaddr *sa) {
 	struct in_addr in;
 	struct in6_addr *in6;
 	u_int16_t port;
@@ -562,10 +555,9 @@ bad:
 	return (1);
 }
 
-int
-dg_broadcast(struct in_addr *in)
-{
-#ifdef HAVE_GETIFADDRS
+int dg_broadcast(struct in_addr *in) {
+
+#if defined(HAVE_GETIFADDRS)
 	struct ifaddrs *ifa, *ifap;
 	struct sockaddr_in *sin;
 
@@ -587,9 +579,7 @@ dg_broadcast(struct in_addr *in)
 	return (0);
 }
 
-void
-reap(int sig, short event, void *arg)
-{
+void reap(int sig, short event, void *arg) {
 	struct servtab *sep;
 	int status;
 	pid_t pid;
@@ -625,9 +615,7 @@ reap(int sig, short event, void *arg)
 	}
 }
 
-void
-config(int sig, short event, void *arg)
-{
+void config(int sig, short event, void *arg) {
 	struct servtab *sep, *cp, **sepp;
 	int add;
 	char protoname[11];
@@ -857,9 +845,7 @@ config(int sig, short event, void *arg)
 	sd_notify(0, "READY=1\n");
 }
 
-void
-retry(int sig, short events, void *arg)
-{
+void retry(int sig, short events, void *arg) {
 	struct servtab *sep;
 
 	timingout = 0;
@@ -878,9 +864,7 @@ retry(int sig, short events, void *arg)
 	}
 }
 
-void
-die(int sig, short events, void *arg)
-{
+void die(int sig, short events, void *arg) {
 	struct servtab *sep;
 
 	sd_notify(0, "STOPPING=1\n");
@@ -905,9 +889,7 @@ die(int sig, short events, void *arg)
 	exit(0);
 }
 
-void
-setup(struct servtab *sep)
-{
+void setup(struct servtab *sep) {
 	int on = 1;
 	int r;
 	mode_t mask = 0;
@@ -1001,9 +983,7 @@ setsockopt(fd, SOL_SOCKET, opt, &on, sizeof (on))
 	}
 }
 
-void
-register_rpc(struct servtab *sep)
-{
+void register_rpc(struct servtab *sep) {
 	socklen_t n;
 	struct sockaddr_in sin;
 	struct protoent *pp;
@@ -1034,9 +1014,7 @@ register_rpc(struct servtab *sep)
 	}
 }
 
-void
-unregister_rpc(struct servtab *sep)
-{
+void unregister_rpc(struct servtab *sep) {
 	int n;
 
 	for (n = sep->se_rpcversl; n <= sep->se_rpcversh; n++) {
@@ -2161,12 +2139,10 @@ spawn(int ctrl, short events, void *xsep)
 		close(ctrl);
 }
 
-/* from netkit+USAGI */
-void
-discard_stupid_environment(void)
-{
+// From netkit with USAGI patches
+void discard_stupid_environment(void) {
 	static const char *const junk[] = {
-		/* these are prefixes */
+		// These are prefixes
 		"CVS",
 		"DISPLAY=",
 		"EDITOR=",
@@ -2178,7 +2154,7 @@ discard_stupid_environment(void)
 		"MAIL=",
 		"PATH=",
 		"PRINTER=",
-		"PWD=",
+		"PWD=", 
 		"SHELL=",
 		"SHLVL=",
 		"SSH",
