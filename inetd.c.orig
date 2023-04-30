@@ -125,6 +125,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/wait.h>
+#include <time.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 
@@ -145,13 +146,20 @@
 #include <unistd.h>
 #include <limits.h>
 #include <string.h>
+#ifdef HAVE_SETUSERCONTEXT
 #include <login_cap.h>
+#endif
+#ifdef HAVE_GETIFADDRS
 #include <ifaddrs.h>
+#endif
 #include <rpc/rpc.h>
 #include <rpc/pmap_clnt.h>
-#include <rpcsvc/nfs_prot.h>
 #include <event.h>
 #include "pathnames.h"
+
+#ifndef HAVE_PLEDGE
+#define pledge(a, b) (0)
+#endif
 
 #define MINIMUM(a, b)	(((a) < (b)) ? (a) : (b))
 
@@ -362,8 +370,10 @@ main(int argc, char *argv[])
 	umask(022);
 	if (debug == 0) {
 		daemon(0, 0);
+#ifdef HAVE_SETLOGIN
 		if (uid == 0)
 			(void) setlogin("");
+#endif
 	}
 
 	if (pledge("stdio rpath cpath getpw dns inet unix proc exec id", NULL) == -1)
@@ -403,6 +413,15 @@ main(int argc, char *argv[])
 	signal_add(&evsig_int, NULL);
 
 	signal(SIGPIPE, SIG_IGN);
+
+	/* space for daemons to overwrite environment for ps */
+	{
+#define DUMMYSIZE 100
+		char dummy[DUMMYSIZE];
+		memset(dummy, 'x', DUMMYSIZE - 1);
+		dummy[DUMMYSIZE - 1] = '\0';
+		setenv("inetd_dummy", dummy, 1);
+	}
 
 	event_dispatch();
 
@@ -496,9 +515,6 @@ dg_badinput(struct sockaddr *sa)
 		goto bad;
 	}
 
-	if (port < IPPORT_RESERVED || port == NFS_PORT)
-		goto bad;
-
 	return (0);
 
 bad:
@@ -508,6 +524,7 @@ bad:
 int
 dg_broadcast(struct in_addr *in)
 {
+#ifdef HAVE_GETIFADDRS
 	struct ifaddrs *ifa, *ifap;
 	struct sockaddr_in *sin;
 
@@ -525,6 +542,7 @@ dg_broadcast(struct in_addr *in)
 		}
 	}
 	freeifaddrs(ifap);
+#endif
 	return (0);
 }
 
@@ -1833,7 +1851,7 @@ print_service(char *action, struct servtab *sep)
 	fprintf(stderr,
 	    " wait.max=%d.%d user:group=%s:%s builtin=%lx server=%s\n",
 	    sep->se_wait, sep->se_max, sep->se_user,
-	    sep->se_group ? sep->se_group : "wheel",
+	    sep->se_group ? sep->se_group : "(default)",
 	    (long)sep->se_bi, sep->se_server);
 }
 
@@ -1982,6 +2000,7 @@ spawn(int ctrl, short events, void *xsep)
 				if (uid != pwd->pw_uid)
 					exit(1);
 			} else {
+#ifdef HAVE_SETUSERCONTEXT
 				tmpint = LOGIN_SETALL &
 				    ~(LOGIN_SETGROUP|LOGIN_SETLOGIN);
 				if (pwd->pw_uid)
@@ -1997,6 +2016,53 @@ spawn(int ctrl, short events, void *xsep)
 					    sep->se_service, sep->se_proto);
 					exit(1);
 				}
+#else
+				/* what about setpriority(2), setrlimit(2),
+				 * and umask(2)? The $PATH is cleared.
+				 */
+				if (pwd->pw_uid) {
+				    if (sep->se_group)
+					pwd->pw_gid = grp->gr_gid;
+				    if (setgid(pwd->pw_gid) < 0) {
+					syslog(LOG_ERR,
+					    "%s/%s: can't set gid %d: %m",
+					    sep->se_service, sep->se_proto,
+					    pwd->pw_gid);
+					exit(1);
+				    }
+				    if (initgroups(pwd->pw_name, pwd->pw_gid)
+					    < 0) {
+					syslog(LOG_ERR,
+					    "%s/%s: can't initgroups(%s): %m",
+					    sep->se_service, sep->se_proto,
+					    pwd->pw_name);
+					exit(1);
+				    }
+				    if (setuid(pwd->pw_uid) < 0) {
+					syslog(LOG_ERR,
+						"%s/%s: can't set uid %d: %m",
+						sep->se_service, sep->se_proto,
+						pwd->pw_uid);
+					exit(1);
+				    }
+				} else if (sep->se_group) {
+				    if (setgid(pwd->pw_gid) < 0) {
+					syslog(LOG_ERR,
+					    "%s/%s: can't set gid %d: %m",
+					    sep->se_service, sep->se_proto,
+					    pwd->pw_gid);
+					exit(1);
+				    }
+				    if (initgroups(pwd->pw_name, pwd->pw_gid)
+					    < 0) {
+					syslog(LOG_ERR,
+					    "%s/%s: can't initgroups(%s): %m",
+					    sep->se_service, sep->se_proto,
+					    pwd->pw_name);
+					exit(1);
+				    }
+				}
+#endif
 			}
 			if (debug)
 				fprintf(stderr, "%ld execv %s\n",
