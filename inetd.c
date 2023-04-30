@@ -289,6 +289,7 @@ void	reap(int, short, void *);
 void	retry(int, short, void *);
 void	die(int, short, void *);
 
+void	logpid(void);
 void	spawn(int, short, void *);
 void	gettcp(int, short, void *);
 int	setconfig(void);
@@ -410,6 +411,7 @@ main(int argc, char *argv[], char *envp[])
 	}
 
 	openlog("inetd", LOG_PID | LOG_NOWAIT, LOG_DAEMON);
+	logpid();
 
 	if (getrlimit(RLIMIT_NOFILE, &rlim_nofile) == -1) {
 		syslog(LOG_ERR, "getrlimit: %m");
@@ -898,6 +900,7 @@ die(int sig, short events, void *arg)
 		}
 		(void)close(sep->se_fd);
 	}
+	(void)unlink("/run/inetd.pid");
 	exit(0);
 }
 
@@ -1638,6 +1641,17 @@ inetd_setproctitle(char *a, int s)
 			setproctitle("-%s [?]", a);
 	} else
 		setproctitle("-%s", a);
+}
+
+void
+logpid(void)
+{
+	FILE *fp;
+
+	if ((fp = fopen("/run/inetd.pid", "w")) != NULL) {
+		fprintf(fp, "%ld\n", (long)getpid());
+		(void)fclose(fp);
+	}
 }
 
 int
