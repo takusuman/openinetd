@@ -44,11 +44,7 @@
 .Op Ar configuration_file
 .Sh DESCRIPTION
 .Nm inetd
-should be run at boot time by
-.Pa /etc/rc
-(see
-.Xr rc 8 ) .
-It then listens for connections on certain internet sockets.
+listens for connections on certain internet sockets.
 When a connection is found on one
 of its sockets, it decides what service the socket
 corresponds to, and invokes a program to service the request.
@@ -165,7 +161,8 @@ The
 .Em service name
 entry is the name of a valid service in
 the file
-.Pa /etc/services .
+.Pa /etc/services
+or a port number.
 For
 .Dq internal
 services (discussed below), the service
@@ -182,7 +179,7 @@ The part on the right of the
 is the RPC version number.
 This can simply be a single numeric argument or a range of versions.
 A range is bounded by the low version to the high version -
-.Dq rusers/1-3 .
+.Dq rusers/1\-3 .
 For
 .Ux Ns -domain
 sockets this field specifies the path name of the socket.
@@ -198,7 +195,8 @@ depending on whether the socket is a stream or datagram socket.
 The
 .Em protocol
 must be a valid protocol as given in
-.Pa /etc/protocols .
+.Pa /etc/protocols or
+.Dq unix .
 Examples might be
 .Dq tcp
 or
@@ -418,14 +416,11 @@ If you have only one server on
 only IPv6 traffic will be routed to the server.
 .El
 .Sh FILES
-.Bl -tag -width /etc/examples/inetd.conf -compact
+.Bl -tag -width /etc/inetd.conf -compact
 .It Pa /etc/inetd.conf
-.It Pa /etc/examples/inetd.conf
 .El
 .Sh SEE ALSO
-.Xr comsat 8 ,
 .Xr fingerd 8 ,
-.Xr ftp-proxy 8 ,
 .Xr ftpd 8 ,
 .Xr identd 8 ,
 .Xr talkd 8
@@ -438,7 +433,23 @@ Support for Sun-RPC
 based services is modelled after that
 provided by SunOS 4.1.
 IPv6 support was added by the KAME project in 1999.
+.Pp
+Marco d'Itri ported this code from OpenBSD in summer 2002 and added
+socket buffers tuning and libwrap support from the NetBSD source tree.
 .Sh BUGS
+On Linux systems, the daemon cannot reload its configuration and needs
+to be restarted when the host address for a service is changed between
+.Dq \&*
+and a specific address.
+.Pp
+Server programs used with
+.Dq dgram
+.Dq udp
+.Dq nowait
+must read from the network socket, or
+.Nm inetd
+will spawn processes until the maximum is reached.
+.Pp
 Host address specifiers, while they make conceptual sense for RPC
 services, do not work entirely correctly.
 This is largely because the
