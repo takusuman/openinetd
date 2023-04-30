@@ -133,6 +133,7 @@
 #if defined(HAVE_GETIFADDRS)
 #include <ifaddrs.h>
 #endif
+
 #if defined(HAVE_SYSTEMD)
 #include <systemd/sd-daemon.h>
 #else // No systemd
@@ -294,6 +295,7 @@ struct servtab *enter(struct servtab *);
 int	matchconf(struct servtab *, struct servtab *);
 int	dg_broadcast(struct in_addr *in);
 void	discard_stupid_environment(void);
+void	usage(void);
 
 #define NUMINT	(sizeof(intab) / sizeof(struct inent))
 char	*CONFIG = _PATH_INETDCONF;
@@ -303,19 +305,24 @@ void		inetd_setproctitle(char *a, int s);
 void		initring(void);
 u_int32_t	machtime(void);
 
+#if defined(HAVE_SYSTEMD)
 void notify_watchdog(int fd, short event, void *arg)
 {
     sd_notify(0, "WATCHDOG=1\n");
 }
+#endif
 
 int
 main(int argc, char *argv[], char *envp[])
 {
 	progname = argv[0];
-	initsetproctitle(argc, argv, envp);
+//	initsetproctitle(argc, argv, envp);
 
 	int ch;
-	while ((ch = getopt(argc, argv, "dR:")) != -1)
+	int nodaemon = 0;
+	int keepenv = 0; 
+
+	while ((ch = getopt(argc, argv, "dEilR:")) != -1)
 		switch (ch) {
 		case 'd':
 			debug = 1;
@@ -379,15 +386,19 @@ main(int argc, char *argv[], char *envp[])
 
 	umask(022);
 	if (debug == 0) {
-		if (nodaemon == 0)
+		if (nodaemon == 0) {
 			if (daemon(0, 0) < 0) {
 				syslog(LOG_ERR, "daemon(0, 0): %m");
 				exit(1);
 			}
+		}
+
 #if defined(HAVE_SETLOGIN)
-		if (uid == 0)
+		if (uid == 0) {
 			(void) setlogin("");
+		}
 #endif
+
 	}
 
 	if (pledge("stdio rpath cpath getpw dns inet unix proc exec id", NULL) == -1)
