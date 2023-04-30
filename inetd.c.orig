@@ -152,6 +152,8 @@
 #ifdef HAVE_GETIFADDRS
 #include <ifaddrs.h>
 #endif
+#include <systemd/sd-daemon.h>
+#include <sys/time.h>
 #include <rpc/rpc.h>
 #include <rpc/pmap_clnt.h>
 #include <event.h>
@@ -311,6 +313,11 @@ void		inetd_setproctitle(char *a, int s);
 void		initring(void);
 u_int32_t	machtime(void);
 
+void notify_watchdog(int fd, short event, void *arg)
+{
+    sd_notify(0, "WATCHDOG=1\n");
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -374,6 +381,9 @@ main(int argc, char *argv[])
 		exit(1);
 	}
 
+	if (getenv("NOTIFY_SOCKET"))
+	    nodaemon = 1;
+
 	umask(022);
 	if (debug == 0) {
 		if (nodaemon == 0)
@@ -424,6 +434,21 @@ main(int argc, char *argv[])
 	signal_add(&evsig_int, NULL);
 
 	signal(SIGPIPE, SIG_IGN);
+
+	{
+	    uint64_t wd_timeout;
+
+	    if (sd_watchdog_enabled(0, &wd_timeout)) {
+		struct timeval tv;
+		struct event *ev = malloc(sizeof(struct event));
+
+		wd_timeout = wd_timeout / 2;
+		tv.tv_usec = wd_timeout % 1000000;
+		tv.tv_sec = wd_timeout / 1000000;
+		event_set(ev, -1, EV_PERSIST, notify_watchdog, NULL);
+		event_add(ev, &tv);
+	    }
+	}
 
 	/* space for daemons to overwrite environment for ps */
 	{
@@ -601,6 +626,8 @@ config(int sig, short event, void *arg)
 	struct servtab *sep, *cp, **sepp;
 	int add;
 	char protoname[11];
+
+	sd_notify(0, "RELOADING=1\n");
 
 	if (!setconfig()) {
 		syslog(LOG_ERR, "%s: %m", CONFIG);
@@ -817,6 +844,8 @@ config(int sig, short event, void *arg)
 		freeconfig(sep);
 		free(sep);
 	}
+
+	sd_notify(0, "READY=1\n");
 }
 
 void
@@ -844,6 +873,8 @@ void
 die(int sig, short events, void *arg)
 {
 	struct servtab *sep;
+
+	sd_notify(0, "STOPPING=1\n");
 
 	for (sep = servtab; sep; sep = sep->se_next) {
 		if (sep->se_fd == -1)
