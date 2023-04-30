@@ -725,11 +725,15 @@ config(int sig, short event, void *arg)
 				    1, USHRT_MAX, NULL));
 
 				if (!port) {
+					unsigned char *p;
 					(void)strlcpy(protoname, sep->se_proto,
 					    sizeof(protoname));
-					if (isdigit((unsigned char)
-					    protoname[strlen(protoname) - 1]))
-						protoname[strlen(protoname) - 1] = '\0';
+					for (p = (unsigned char *)
+					    protoname; *p; p++)
+						if (isdigit(*p)) {
+							*p = '\0';
+							break;
+						}
 					sp = getservbyname(sep->se_service,
 					    protoname);
 					if (sp == 0) {
@@ -908,6 +912,16 @@ setup(struct servtab *sep)
 		syslog(LOG_ERR, "%s/%s: socket: %m",
 		    sep->se_service, sep->se_proto);
 		return;
+	}
+	if (strncmp(sep->se_proto, "tcp6", 4) == 0) {
+		if (setsockopt(sep->se_fd, IPPROTO_IPV6, IPV6_V6ONLY, &on,
+			    sizeof (on)) < 0)
+			syslog(LOG_ERR, "setsockopt (IPV6_V6ONLY): %m");
+	} else if (strncmp(sep->se_proto, "tcp46", 5) == 0) {
+		int off = 0;
+		if (setsockopt(sep->se_fd, IPPROTO_IPV6, IPV6_V6ONLY, &off,
+			    sizeof (off)) < 0)
+			syslog(LOG_ERR, "setsockopt (IPV6_V6ONLY): %m");
 	}
 #define	turnon(fd, opt) \
 setsockopt(fd, SOL_SOCKET, opt, &on, sizeof (on))

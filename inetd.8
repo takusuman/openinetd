@@ -417,6 +417,11 @@ is specified.
 If you have only one server on
 .Dq tcp6 ,
 only IPv6 traffic will be routed to the server.
+.Pp
+The special
+.Dq tcp46
+parameter can be used for obsolete servers which require to receive IPv4
+connections mapped in an IPv6 socket. Its usage is discouraged.
 .El
 .Sh FILES
 .Bl -tag -width /etc/inetd.conf -compact

@@ -319,9 +319,11 @@ void notify_watchdog(int fd, short event, void *arg)
 }
 
 int
-main(int argc, char *argv[])
+main(int argc, char *argv[], char *envp[])
 {
 	int ch;
+
+	initsetproctitle(argc, argv, envp);
 
 	while ((ch = getopt(argc, argv, "dR:")) != -1)
 		switch (ch) {
