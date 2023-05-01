@@ -280,7 +280,7 @@ void	die(int, short, void *);
 
 // Maybe not the most beautiful way to have "/var/run/inetd.pid",
 // but that's all, folks.
-#define PID_PATH _PATH_VARRUN"inetd.pid"
+#define PID_FILE _PATH_VARRUN"inetd.pid"
 
 void	logpid(void);
 void	spawn(int, short, void *);
@@ -888,7 +888,7 @@ void die(int sig, short events, void *arg) {
 		}
 		(void)close(sep->se_fd);
 	}
-	(void)unlink(PID_PATH);
+	(void)unlink(PID_FILE);
 	exit(0);
 }
 
@@ -1611,7 +1611,7 @@ void inetd_setproctitle(char *a, int s) {
 void logpid(void) {
 	FILE *fp;
 
-	if ((fp = fopen(PID_PATH, "w")) != NULL) {
+	if ((fp = fopen(PID_FILE, "w")) != NULL) {
 		fprintf(fp, "%ld\n", (long)getpid());
 		(void)fclose(fp);
 	}
