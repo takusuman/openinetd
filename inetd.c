@@ -174,7 +174,7 @@ int	 timingout;
 struct	 servent *sp;
 uid_t	 uid;
 
-#ifndef OPEN_MAX
+#if !defined(OPEN_MAX)
 #define OPEN_MAX	64
 #endif
 
@@ -278,6 +278,10 @@ void	reap(int, short, void *);
 void	retry(int, short, void *);
 void	die(int, short, void *);
 
+// Maybe not the most beautiful way to have "/var/run/inetd.pid",
+// but that's all, folks.
+#define PID_PATH _PATH_VARRUN"inetd.pid"
+
 void	logpid(void);
 void	spawn(int, short, void *);
 void	gettcp(int, short, void *);
@@ -312,7 +316,7 @@ void notify_watchdog(int fd, short event, void *arg) {
 
 int main(int argc, char *argv[]) {
 	progname = argv[0];
-
+	
 	int ch;
 	int nodaemon = 0;
 	int keepenv = 0; 
@@ -556,7 +560,6 @@ bad:
 }
 
 int dg_broadcast(struct in_addr *in) {
-
 #if defined(HAVE_GETIFADDRS)
 	struct ifaddrs *ifa, *ifap;
 	struct sockaddr_in *sin;
@@ -885,7 +888,7 @@ void die(int sig, short events, void *arg) {
 		}
 		(void)close(sep->se_fd);
 	}
-	(void)unlink("/run/inetd.pid");
+	(void)unlink(PID_PATH);
 	exit(0);
 }
 
@@ -1585,9 +1588,8 @@ struct servtab * dupconfig(struct servtab *sep) {
 	return (newtab);
 }
 
-void
-inetd_setproctitle(char *a, int s)
-{
+
+void inetd_setproctitle(char *a, int s) {
 	socklen_t size;
 	struct sockaddr_storage ss;
 	char hbuf[NI_MAXHOST];
@@ -1603,10 +1605,13 @@ inetd_setproctitle(char *a, int s)
 		setproctitle("-%s", a);
 }
 
+// This function write the process identificator (P.ID.)
+// to a .pid file, which is represented as "fp", using
+// fprintf(3).
 void logpid(void) {
 	FILE *fp;
 
-	if ((fp = fopen("/run/inetd.pid", "w")) != NULL) {
+	if ((fp = fopen(PID_PATH, "w")) != NULL) {
 		fprintf(fp, "%ld\n", (long)getpid());
 		(void)fclose(fp);
 	}
@@ -1930,7 +1935,7 @@ void spawn(int ctrl, short events, void *xsep) {
 		event_del(&sep->se_event);
 	}
 	if (pid == 0) {
-#ifdef LIBWRAP
+#if defined(LIBWRAP)
 		if (lflag && !sep->se_wait && !sep->se_bi && sep->se_socktype == SOCK_STREAM) {
 			struct request_info req;
 			char *service;
@@ -2001,7 +2006,7 @@ void spawn(int ctrl, short events, void *xsep) {
 				if (uid != pwd->pw_uid)
 					exit(1);
 			} else {
-#ifdef HAVE_SETUSERCONTEXT
+#if defined(HAVE_SETUSERCONTEXT)
 				tmpint = LOGIN_SETALL &
 				    ~(LOGIN_SETGROUP|LOGIN_SETLOGIN);
 				if (pwd->pw_uid)
@@ -2103,7 +2108,7 @@ void discard_stupid_environment(void) {
 		"MAIL=",
 		"PATH=",
 		"PRINTER=",
-		"PWD=", 
+		"PWD=",
 		"SHELL=",
 		"SHLVL=",
 		"SSH",
